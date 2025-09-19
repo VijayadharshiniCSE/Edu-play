@@ -1,0 +1,136 @@
+import json
+import subprocess
+import tempfile
+import os
+
+# --------------------------
+# Python Code Execution
+# --------------------------
+def execute_python_code(code, test_cases):
+    try:
+        results = []
+        passed_count = 0
+        global_vars, local_vars = {}, {}
+
+        # Execute the user's code
+        exec(code, global_vars, local_vars)
+
+        # Run test cases
+        for i, test_case in enumerate(test_cases):
+            try:
+                func = local_vars.get(test_case['function_name'], None)
+                if not func:
+                    raise Exception(f"Function {test_case['function_name']} not found")
+
+                actual = func(*test_case['input']) if isinstance(test_case['input'], list) else func(test_case['input'])
+                passed = actual == test_case['expected']
+                if passed:
+                    passed_count += 1
+
+                results.append({
+                    'test_id': i + 1,
+                    'input': test_case['input'],
+                    'expected': test_case['expected'],
+                    'actual': actual,
+                    'passed': passed
+                })
+            except Exception as e:
+                results.append({
+                    'test_id': i + 1,
+                    'input': test_case['input'],
+                    'expected': test_case['expected'],
+                    'actual': None,
+                    'passed': False,
+                    'error': str(e)
+                })
+
+        score = int((passed_count / len(test_cases)) * 100)
+        return {'all_passed': passed_count == len(test_cases), 'score': score, 'results': results}
+
+    except Exception as e:
+        return {'error': str(e), 'all_passed': False, 'score': 0}
+
+
+# --------------------------
+# JavaScript Code Execution
+# --------------------------
+def execute_javascript_code(code, test_cases):
+    try:
+        test_script = f"""
+        {code}
+
+        const testCases = {json.dumps(test_cases)};
+        const results = [];
+        let passedCount = 0;
+
+        testCases.forEach((testCase, index) => {{
+            try {{
+                const func = eval(testCase.function_name);
+                const input = testCase.input;
+                const expected = testCase.expected;
+                const actual = Array.isArray(input) ? func(...input) : func(input);
+                const passed = JSON.stringify(actual) === JSON.stringify(expected);
+                if (passed) passedCount++;
+                results.push({{ test_id: index + 1, input, expected, actual, passed }});
+            }} catch (err) {{
+                results.push({{ test_id: index + 1, input: testCase.input, expected: testCase.expected, actual: null, passed: false, error: err.message }});
+            }}
+        }});
+
+        const score = Math.floor((passedCount / testCases.length) * 100);
+        console.log(JSON.stringify({{ all_passed: passedCount === testCases.length, score, results }}));
+        """
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as f:
+            f.write(test_script)
+            temp_file = f.name
+
+        result = subprocess.run(['node', temp_file], capture_output=True, text=True, timeout=30)
+
+        os.unlink(temp_file)
+
+        if result.returncode == 0:
+            return json.loads(result.stdout.strip())
+        else:
+            return {'error': result.stderr, 'all_passed': False, 'score': 0}
+    except Exception as e:
+        return {'error': str(e), 'all_passed': False, 'score': 0}
+
+# --------------------------
+# Test Python Submission
+# --------------------------
+print("🔧 Testing Python Code Submission\n")
+
+python_code = """
+def solution(x):
+    return x * x
+"""
+
+python_test_cases = [
+    {'function_name': 'solution', 'input': 2, 'expected': 4},
+    {'function_name': 'solution', 'input': 3, 'expected': 9},
+    {'function_name': 'solution', 'input': 4, 'expected': 16}
+]
+
+result_py = execute_python_code(python_code, python_test_cases)
+print(json.dumps(result_py, indent=2))
+
+# --------------------------
+# Test JavaScript Submission
+# --------------------------
+print("\n🔧 Testing JavaScript Code Submission\n")
+
+js_code = """
+function solution(x) {
+    return x * x;
+}
+"""
+
+js_test_cases = [
+    {'function_name': 'solution', 'input': 2, 'expected': 4},
+    {'function_name': 'solution', 'input': 5, 'expected': 25},
+    {'function_name': 'solution', 'input': 10, 'expected': 100}
+]
+
+result_js = execute_javascript_code(js_code, js_test_cases)
+print(json.dumps(result_js, indent=2))
