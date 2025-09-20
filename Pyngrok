@@ -1,0 +1,209 @@
+import json
+import os
+
+# Load existing courses
+if os.path.exists('data/courses.json'):
+    with open('data/courses.json', 'r') as f:
+        courses = json.load(f)
+else:
+    courses = []
+
+# Add new courses
+new_courses = [
+    {
+        "id": 3,
+        "title": "Data Science with Python",
+        "description": "Learn data analysis and visualization.",
+        "instructor": "Charlie Brown",
+        "duration": "8 weeks"
+    },
+    {
+        "id": 4,
+        "title": "Machine Learning Fundamentals",
+        "description": "Introduction to machine learning concepts.",
+        "instructor": "Diana Prince",
+        "duration": "10 weeks"
+    },
+    {
+        "id": 5,
+        "title": "Advanced JavaScript",
+        "description": "Dive deeper into modern JavaScript.",
+        "instructor": "Ethan Hunt",
+        "duration": "6 weeks"
+    }
+]
+
+# Append new courses, ensuring no duplicates by ID (simple check)
+existing_ids = {course['id'] for course in courses}
+for new_course in new_courses:
+    if new_course['id'] not in existing_ids:
+        courses.append(new_course)
+        existing_ids.add(new_course['id']) # Add to set to prevent adding duplicates within the new_courses list if it were larger
+
+# Save the updated courses list back to courses.json
+with open('data/courses.json', 'w') as f:
+    json.dump(courses, f, indent=2)
+
+print("Courses updated successfully!")
+
+# You might need to restart the Flask app cell (above) to see the changes reflected on the website.
+# ✅ Step 1: Install Flask and pyngrok
+!pip install flask pyngrok --quiet
+
+# ✅ Step 2: Set up project structure
+import os
+
+os.makedirs('templates', exist_ok=True)
+os.makedirs('static', exist_ok=True)
+os.makedirs('data', exist_ok=True)
+
+# ✅ Step 3: Create courses.json
+with open('data/courses.json', 'w') as f:
+    f.write('''[
+  {
+    "id": 1,
+    "title": "Python for Beginners",
+    "description": "Learn Python from scratch.",
+    "instructor": "Alice Johnson",
+    "duration": "6 weeks"
+  },
+  {
+    "id": 2,
+    "title": "Intro to Web Development",
+    "description": "HTML, CSS, and JavaScript basics.",
+    "instructor": "Bob Smith",
+    "duration": "4 weeks"
+  }
+]''')
+
+# ✅ Step 4: Create index.html
+with open('templates/index.html', 'w') as f:
+    f.write('''
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Online Learning Platform</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <h1>Welcome to LearnOnline</h1>
+  <div class="course-list">
+    {% for course in courses %}
+      <div class="course-card">
+        <h3>{{ course.title }}</h3>
+        <p>{{ course.description }}</p>
+        <a href="/course/{{ course.id }}">View Course</a>
+      </div>
+    {% endfor %}
+  </div>
+</body>
+</html>
+''')
+
+# ✅ Step 5: Create course.html
+with open('templates/course.html', 'w') as f:
+    f.write('''
+<!DOCTYPE html>
+<html>
+<head>
+  <title>{{ course.title }}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <h1>{{ course.title }}</h1>
+  <p>{{ course.description }}</p>
+  <p><strong>Instructor:</strong> {{ course.instructor }}</p>
+  <p><strong>Duration:</strong> {{ course.duration }}</p>
+  <a href="/">Back to all courses</a>
+</body>
+</html>
+''')
+
+# ✅ Step 6: Create style.css
+with open('static/style.css', 'w') as f:
+    f.write('''
+body {
+  font-family: Arial, sans-serif;
+  padding: 20px;
+  background: #f4f4f4;
+}
+h1 {
+  color: #333;
+}
+.course-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.course-card {
+  background: #fff;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  width: 250px;
+}
+''')
+
+# ✅ Step 7: Create app.py
+with open('app.py', 'w') as f:
+    f.write('''
+from flask import Flask, render_template, jsonify
+import json
+
+app = Flask(__name__)
+
+def load_courses():
+    with open('data/courses.json', 'r') as f:
+        return json.load(f)
+
+@app.route('/')
+def index():
+    courses = load_courses()
+    return render_template('index.html', courses=courses)
+
+@app.route('/course/<int:course_id>')
+def course(course_id):
+    courses = load_courses()
+    course = next((c for c in courses if c["id"] == course_id), None)
+    if not course:
+        return "Course not found", 404
+    return render_template('course.html', course=course)
+
+@app.route('/api/courses')
+def api_courses():
+    return jsonify(load_courses())
+
+if __name__ == '__main__':
+    app.run(debug=False, port=5000, use_reloader=False)
+''')
+
+# ✅ Step 8: Start Flask using ngrok
+from pyngrok import ngrok
+import threading
+from google.colab import userdata
+
+# 🔐 Set your Ngrok token here
+# It's recommended to store your token securely using Colab's Secrets feature.
+# Add your ngrok token to the Secrets tab (🔑) in the left panel,
+# with the name 'NGROK_AUTH_TOKEN'.
+try:
+  NGROK_AUTH_TOKEN = userdata.get('NGROK_AUTH_TOKEN')
+except:
+  print("Please add your ngrok token to Colab Secrets with the name 'NGROK_AUTH_TOKEN'")
+  NGROK_AUTH_TOKEN = None
+
+if NGROK_AUTH_TOKEN:
+  ngrok.set_auth_token(NGROK_AUTH_TOKEN)
+  public_url = ngrok.connect(5000)
+  print(f"🚀 Your app is live at: {public_url}")
+
+  def run_app():
+      os.system("python3 app.py")
+
+  threading.Thread(target=run_app).start()
+else:
+  print("ngrok token not found. Please add it to Colab Secrets.")
+
+
+
+
