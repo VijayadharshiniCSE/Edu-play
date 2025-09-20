@@ -1,63 +1,17 @@
-import json
-import os
-
-# Load existing courses
-if os.path.exists('data/courses.json'):
-    with open('data/courses.json', 'r') as f:
-        courses = json.load(f)
-else:
-    courses = []
-
-# Add new courses
-new_courses = [
-    {
-        "id": 3,
-        "title": "Data Science with Python",
-        "description": "Learn data analysis and visualization.",
-        "instructor": "Charlie Brown",
-        "duration": "8 weeks"
-    },
-    {
-        "id": 4,
-        "title": "Machine Learning Fundamentals",
-        "description": "Introduction to machine learning concepts.",
-        "instructor": "Diana Prince",
-        "duration": "10 weeks"
-    },
-    {
-        "id": 5,
-        "title": "Advanced JavaScript",
-        "description": "Dive deeper into modern JavaScript.",
-        "instructor": "Ethan Hunt",
-        "duration": "6 weeks"
-    }
-]
-
-# Append new courses, ensuring no duplicates by ID (simple check)
-existing_ids = {course['id'] for course in courses}
-for new_course in new_courses:
-    if new_course['id'] not in existing_ids:
-        courses.append(new_course)
-        existing_ids.add(new_course['id']) # Add to set to prevent adding duplicates within the new_courses list if it were larger
-
-# Save the updated courses list back to courses.json
-with open('data/courses.json', 'w') as f:
-    json.dump(courses, f, indent=2)
-
-print("Courses updated successfully!")
-
-# You might need to restart the Flask app cell (above) to see the changes reflected on the website.
-# ✅ Step 1: Install Flask and pyngrok
+# ✅ STEP 1: Install required packages
 !pip install flask pyngrok --quiet
 
-# ✅ Step 2: Set up project structure
+# ✅ STEP 2: Ask for Ngrok token securely
+from getpass import getpass
+NGROK_AUTH_TOKEN = getpass("🔐 Enter your NGROK auth token: ")
+
+# ✅ STEP 3: Project setup (folders and files)
 import os
 
 os.makedirs('templates', exist_ok=True)
 os.makedirs('static', exist_ok=True)
 os.makedirs('data', exist_ok=True)
 
-# ✅ Step 3: Create courses.json
 with open('data/courses.json', 'w') as f:
     f.write('''[
   {
@@ -76,7 +30,6 @@ with open('data/courses.json', 'w') as f:
   }
 ]''')
 
-# ✅ Step 4: Create index.html
 with open('templates/index.html', 'w') as f:
     f.write('''
 <!DOCTYPE html>
@@ -100,7 +53,6 @@ with open('templates/index.html', 'w') as f:
 </html>
 ''')
 
-# ✅ Step 5: Create course.html
 with open('templates/course.html', 'w') as f:
     f.write('''
 <!DOCTYPE html>
@@ -119,7 +71,6 @@ with open('templates/course.html', 'w') as f:
 </html>
 ''')
 
-# ✅ Step 6: Create style.css
 with open('static/style.css', 'w') as f:
     f.write('''
 body {
@@ -144,7 +95,6 @@ h1 {
 }
 ''')
 
-# ✅ Step 7: Create app.py
 with open('app.py', 'w') as f:
     f.write('''
 from flask import Flask, render_template, jsonify
@@ -177,33 +127,24 @@ if __name__ == '__main__':
     app.run(debug=False, port=5000, use_reloader=False)
 ''')
 
-# ✅ Step 8: Start Flask using ngrok
+# ✅ STEP 4: Start Flask + Ngrok
 from pyngrok import ngrok
 import threading
-from google.colab import userdata
+import time
 
-# 🔐 Set your Ngrok token here
-# It's recommended to store your token securely using Colab's Secrets feature.
-# Add your ngrok token to the Secrets tab (🔑) in the left panel,
-# with the name 'NGROK_AUTH_TOKEN'.
-try:
-  NGROK_AUTH_TOKEN = userdata.get('NGROK_AUTH_TOKEN')
-except:
-  print("Please add your ngrok token to Colab Secrets with the name 'NGROK_AUTH_TOKEN'")
-  NGROK_AUTH_TOKEN = None
+# Set the Ngrok auth token
+ngrok.set_auth_token(NGROK_AUTH_TOKEN)
 
-if NGROK_AUTH_TOKEN:
-  ngrok.set_auth_token(NGROK_AUTH_TOKEN)
-  public_url = ngrok.connect(5000)
-  print(f"🚀 Your app is live at: {public_url}")
+# Start Flask in a background thread
+def run_app():
+    os.system("python3 app.py")
 
-  def run_app():
-      os.system("python3 app.py")
+thread = threading.Thread(target=run_app)
+thread.start()
 
-  threading.Thread(target=run_app).start()
-else:
-  print("ngrok token not found. Please add it to Colab Secrets.")
+# Wait a moment for Flask to start
+time.sleep(2)
 
-
-
-
+# Connect ngrok and get public URL
+public_url = ngrok.connect(5000)
+print(f"\n🚀 Your app is live at: {public_url}")
